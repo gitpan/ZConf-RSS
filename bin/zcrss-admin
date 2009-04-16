@@ -1,0 +1,238 @@
+#!/usr/bin/perl
+#Copyright (c) 2009, Zane C. Bowers
+#All rights reserved.
+#
+#Redistribution and use in source and binary forms, with or without modification,
+#are permitted provided that the following conditions are met:
+#
+#   * Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+#   * Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+#THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+#ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+#WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+#IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+#INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, 
+#BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+#DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+#LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+#THE POSSIBILITY OF SUCH DAMAGE.
+
+use strict;
+use warnings;
+use Getopt::Std;
+use ZConf::RSS;
+
+$Getopt::Std::STANDARD_HELP_VERSION = 1;
+
+#version function
+sub main::VERSION_MESSAGE {
+	print "zcrss-admin 0.0.1\n";
+}
+
+#print help
+sub main::HELP_MESSAGE {
+	print "\n".
+	      "-r <feed>  RSS feed URL\n".
+	      "-n <name>  RSS feed name\n".
+		  "-t <template>  Template name or top template.\n".
+		  "-a <action>  The specified action.\n".
+		  "-s <set>  The set to act on.\n".
+		  "-f <file>  A file to read into a template.\n".
+		  "-b <template>  Bottom template.\n".
+		  "-i <template>  Item template.\n".
+		  "-o <option>  Option.\n".
+		  "-v <value>  Value.\n".
+		  "\n".
+		  "ACTIONS\n".
+		  "st  set template\n".
+		  "gt  get template\n".
+		  "lt  list templates\n".
+		  "sr  set feed\n".
+		  "lr  list feegs\n".
+		  "gro  get feed options\n";
+}
+
+#gets the options
+my %opts=();
+getopts('r:t:a:s:f:i:b:o:n:', \%opts);
+
+#make sure a defined
+if (!defined($opts{a})) {
+	warn('zcrss-admin: -a not specified');
+	exit 1;	
+}
+
+#this is set to when matched to check if -a is valid
+my $matched=undef;
+
+#this makes sure all options are given for st, setTemplate
+if ($opts{a} eq 'st') {
+	if (!defined($opts{t})) {
+		warn('zcrss-admin: -t is not defined');
+		exit 1;
+	}
+	if (!defined($opts{f})) {
+		warn('zcrss-admin: -f is not defined');
+		exit 1;
+	}
+	$matched=1;
+}
+
+#this makes sure all options are given for gt, getTemplate
+if ($opts{a} eq 'gt') {
+	if (!defined($opts{t})) {
+		warn('zcrss-admin: -t is not defined');
+		exit 1;
+	}
+	$matched=1;
+}
+
+#this makes sure all options are given for gro, get feed option
+if ($opts{a} eq 'gro') {
+	if (!defined($opts{n})) {
+		warn('zcrss-admin: -n is not defined');
+		exit 1;
+	}
+	if (!defined($opts{o})) {
+		warn('zcrss-admin: -o is not defined');
+		exit 1;
+	}
+	$matched=1;
+}
+
+#this makes sure all options are given for sf, set feed
+if ($opts{a} eq 'sr') {
+	if (!defined($opts{r})) {
+		warn('zcrss-admin: -r is not defined');
+		exit 1;
+	}
+	if (!defined($opts{t})) {
+		$opts{t}='defaultTop';
+	}
+	if (!defined($opts{b})) {
+		$opts{b}='defaultBottom';
+	}
+	if (!defined($opts{i})) {
+		$opts{i}='defaultItem';
+	}
+	if (!defined($opts{n})) {
+		warn('zcrss-admin: -n is not defined');
+		exit 1;
+	}
+	$matched=1;
+}
+
+#list templates
+if ($opts{a} eq 'lt') {
+	$matched=1;
+}
+
+#list feeds
+if ($opts{a} eq 'lr') {
+	$matched=1;
+}
+
+if (!$matched) {
+	warn('zcrss-admin: The specified action via -a does not appear to be valid');
+	exit 1;
+}
+
+#inits ZConf::RSS
+my $zr = ZConf::RSS->new({set=>$opts{s}});
+if($zr->{error}){
+	warn('zcrss-admin: ZConf::RSS->new({set=>$opts{s}} errored');
+	exit 1;
+}
+
+#get template
+if ($opts{a} eq 'gt') {
+	my $template=$zr->getTemplate($opts{t});
+	if ($zr->{error}) {
+		exit 1;
+	}
+	print $template;
+	exit 0;
+}
+
+#set template
+if ($opts{a} eq 'st') {
+	open(TEMPLATE, '<', $opts{f});
+	my @templateInfoA=<TEMPLATE>;
+	close(TEMPLATE);
+	my $templateInfo=join("", @templateInfoA);
+	my $template=$zr->setTemplate($opts{t}, $templateInfo);
+	if ($zr->{error}) {
+		exit 1;
+	}
+	exit 0;
+}
+
+#get feed options
+if ($opts{a} eq 'gro') {
+	my %feedArgs=$zr->getFeedArgs($opts{r});
+	if ($zr->{error}) {
+		exit 1;
+	}
+	if (!defined($feedArgs{$opts{o}})) {
+		warn('zcrss-admin: "'..'"');
+		exit 1;
+	}
+	exit 0;
+}
+
+#list templates
+if ($opts{a} eq 'lt') {
+    my @templates=$zr->listTemplates;
+    if($zr->{error}){
+		exit 1;
+    }
+	my $int=0;
+	while (defined($templates[$int])) {
+		print $templates[$int]."\n";
+		$int++;
+	}
+	exit 0;
+}
+
+#list feeds
+if ($opts{a} eq 'lr') {
+    my @feeds=$zr->listFeeds;
+    if($zr->{error}){
+		exit 1;
+    }
+	my $int=0;
+	while (defined($feeds[$int])) {
+		print $feeds[$int]."\n";
+		$int++;
+	}
+	exit 0;
+}
+
+#set feed
+if ($opts{a} eq 'sr') {
+	$zr->setFeed({name=>$opts{n}, feed=>$opts{r}, topTemplate=>$opts{t},
+				  itemTemplate=>$opts{i}, bottomTemplate=>$opts{b}});
+	if ($zr->{error}) {
+		exit 1;
+	}
+	exit 0;
+}
+
+#get feed option
+if ($opts{a} eq 'gro') {
+	my %args=$zr->getFeedArgs($opts{n});
+	if ($zr->{error}) {
+		exit 1;
+	}
+	if (!defined($args{$opts{o}})) {
+		warn('zcrss-admin: "'.$opts{o}.'" is not defined for the feed "'.$opts{n}.'"');
+		exit 1;
+	}
+	print $args{$opts{o}}."\n";
+	exit 0;
+}
