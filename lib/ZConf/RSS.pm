@@ -13,11 +13,11 @@ ZConf::RSS - ZConf backed RSS fetching.
 
 =head1 VERSION
 
-Version 0.0.0
+Version 1.0.0
 
 =cut
 
-our $VERSION = '0.0.0';
+our $VERSION = '1.0.0';
 
 
 =head1 SYNOPSIS
@@ -27,7 +27,7 @@ our $VERSION = '0.0.0';
     my $zcrss = ZConf::RSS->new();
     ...
 
-=head1 METHODES
+=head1 METHODS
 
 =head2 new
 
@@ -37,22 +37,9 @@ One arguement is taken and that is a hash value.
 
 =head3 hash values
 
-=head2 autoinit
-
-If this is set to true, it will automatically call
-init the set and config. If this is set to false or
-not defined, besure to check '$zcw->{init}' to see
-if the config/module has been initiated or not.
-
-If it is not specified, it will default to true.
-
-=head2 set
-
-This is the set to load initially.
-
 =head4 zconf
 
-If this key is defined, this hash will be passed to ZConf->new().
+This is the a ZConf object. If not passed, another one will be created.
 
     my $zcrss=ZConf::RSS->new();
     if($zcrss->{error}){
@@ -66,122 +53,94 @@ sub new {
 	if(defined($_[1])){
 		%args= %{$_[1]};
 	}
+	my $function='new';
 
-	my $self={error=>undef, errorString=>undef};
+	my $self={error=>undef,
+			  errorString=>undef,
+			  zconfconfig=>'rss',
+			  perror=>1,
+			  module=>'ZConf-RSS',
+			  };
 	bless $self;
 
-	#this sets the set to undef if it is not defined
-	if (!defined($args{set})) {
-		$self->{set}=undef;
-	}else {
-		$self->{set}=$args{set};
-	}
-
-	#this sets the set to 1 if it is not defined
-	if (!defined($args{autoinit})) {
-		$self->{autoinit}=1;
-	}else {
-		$self->{autoinit}=$args{set};
-	}
-
-	#this is done to keep from throwing an error when we try to pass it to ZConf->new
+	#get the ZConf object
 	if (!defined($args{zconf})) {
-		$args{zconf}={};
+		#creates the ZConf object
+		$self->{zconf}=ZConf->new();
+		if(defined($self->{zconf}->{error})){
+			$self->{error}=1;
+			$self->{perror}=1;
+			$self->{errorString}="Could not initiate ZConf. It failed with '"
+			                     .$self->{zconf}->{error}."', '".
+			                     $self->{zconf}->{errorString}."'";
+			warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+			return $self;
+		}
+	}else {
+		$self->{zconf}=$args{zconf};
 	}
-
-	#creates the ZConf object
-	$self->{zconf}=ZConf->new(%{$args{zconf}});
-	if(defined($self->{zconf}->{error})){
-		warn("ZConf-RSS new:1: Could not initiate ZConf. It failed with '"
-			 .$self->{zconf}->{error}."', '".$self->{zconf}->{errorString}."'");
-		$self->{error}=1;
-		$self->{errorString}="Could not initiate ZConf. It failed with '"
-		                      .$self->{zconf}->{error}."', '".
-							  $self->{zconf}->{errorString}."'";
-		return $self;
-	}
-
 
 	#create the config if it does not exist
 	#if it does exist, make sure the set we are using exists
-    $self->{init} = $self->{zconf}->configExists("rss");
+    my $returned = $self->{zconf}->configExists($self->{zconfconfig});
 	if($self->{zconf}->{error}){
-		warn("ZConf-RSS new:2: Could not check if the config 'rss' exists.".
-			 " It failed with '".$self->{zconf}->{error}."', '"
-			 .$self->{zconf}->{errorString}."'");
 		$self->{error}=2;
-		$self->{errorString}="Could not check if the config 'rss' exists.".
-	   		                 " It failed with '".$self->{zconf}->{error}."', '"
-			                 .$self->{zconf}->{errorString}."'";
+		$self->{perror}=1;
+		$self->{errorString}="Checking if '".$self->{zconfconfig}."' exists failed. error='".
+		                     $self->{zconf}->{error}."', errorString='".
+		                     $self->{zconf}->{errorString}."'";
+		warn($self->{module}.' '.$function.':'.$self->{error}.':'.$self->{errorString});
 		return $self;
 	}
 
-	#if it is not inited, check to see if it needs to do so
-	if ((!$self->{init}) && $self->{autoinit}) {
-		$self->init($self->{set});
-		if ($self->{error}) {
-			warn('ZConf-RSS new:4: Autoinit failed.');
-		}else {
-			#if init works, it is now inited and thus we set it to one
-			$self->{init}=1;
-		}
-		#we don't set any error stuff here even if the above action failed...
-		#it will have been set any ways by init methode
-		return $self;
-	}
-
-	#checks it is set to use the default set
-	#use defined as '0' is a legit set name and is a perl boolean for false
-	if ((!defined($self->{set})) && $self->{init}) {
-		$self->{init}=$self->{zconf}->defaultSetExists('rss');
-		if($self->{zconf}->{error}){
-			warn("ZConf-RSS new:2: defaultSetExists failed for 'rss'.".
-				 " It failed with '".$self->{zconf}->{error}."', '"
-				 .$self->{zconf}->{errorString}."'");
-			$self->{error}=2;
-			$self->{errorString}="defaultSetExists failed for 'rss'.".
-	   		                 " It failed with '".$self->{zconf}->{error}."', '"
-			                 .$self->{zconf}->{errorString}."'";
+	#initiate the config if it does not exist
+	if (!$returned) {
+		#init it
+		$self->init;
+		if ($self->{zconf}->{error}) {
+			$self->{perror}=1;
+			$self->{errorString}='Init failed.';
+			warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 			return $self;
 		}
-	}
-
-	#check it if it set to use a specific set
-	#use defined as '0' is a legit set name and is a perl boolean for false
-	if (defined($self->{set})) {
-		$self->{init}=$self->{zconf}->setExists('rss', $self->{set});
-		if($self->{zconf}->{error}){
-			warn("ZConf-RSS new:2: defaultSetExists failed for 'rss'.".
-				 " It failed with '".$self->{zconf}->{error}."', '"
-				 .$self->{zconf}->{errorString}."'");
+	}else {
+		#if we have a set, make sure we also have a set that will be loaded
+		$returned=$self->{zconf}->defaultSetExists($self->{zconfconfig});
+		if ($self->{zconf}->{error}) {
 			$self->{error}=2;
-			$self->{errorString}="defaultSetExists failed for 'rss'.".
-	   		                 " It failed with '".$self->{zconf}->{error}."', '"
-			                 .$self->{zconf}->{errorString}."'";
+			$self->{perror}=1;
+			$self->{errorString}="Checking if '".$self->{zconfconfig}."' exists failed. error='".
+			$self->{zconf}->{error}."', errorString='".
+			$self->{zconf}->{errorString}."'";
+			warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 			return $self;
 		}
+		
+		#if we don't have a default set, initialize it
+		if (!$returned) {
+			#init it
+			$self->init;
+			if ($self->{zconf}->{error}) {
+				$self->{perror}=1;
+				$self->{errorString}='Init failed.';
+				warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+				return $self;
+			}
+		}
 	}
 
-	#the first one does this if the config has not been done yet
-	#this one does it if the set has not been done yet
-	#if it is not inited, check to see if it needs to do so
-	if (!$self->{init} && $self->{autoinit}) {
-		$self->init($self->{set});
-		if ($self->{error}) {
-			warn('ZConf-RSS new:4: Autoinit failed.');
-		}else {
-			#if init works, it is now inited and thus we set it to one
-			$self->{init}=1;
-		}
-		#we don't set any error stuff here even if the above action failed...
-		#it will have been set any ways by init methode
+	#read the config
+	$self->{zconf}->read({config=>$self->{zconfconfig}});
+	if ($self->{zconf}->{error}) {
+		$self->{error}=1;
+		$self->{perror}=1;
+		$self->{errorString}="Reading the ZConf config '".$self->{zconfconfig}."' failed. error='".
+		                     $self->{zconf}->{error}."', errorString='".
+		                     $self->{zconf}->{errorString}."'";
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return $self;
 	}
 
-	#reads it if it does not need to be initiated
-	if ($self->{init}) {
-		$self->{zconf}->read({set=>$self->{set}, config=>'rss'});
-	}
 
 	return $self;
 }
@@ -217,8 +176,13 @@ This makes sure a specified template exists.
 sub feedExists{
 	my $self=$_[0];
 	my $template=$_[1];
+	my $function='feedExists';
 
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
+
 
 	my @templates=$self->listFeeds;
 	if ($self->{error}) {
@@ -238,6 +202,129 @@ sub feedExists{
 	return undef;
 }
 
+=head2 delFeed
+
+This removes a feed.
+
+One arguement is required and that is the name of the feed.
+
+    $zcrss->delFeed('someFeed');
+    if($self->{error}){
+        print "Error!\n";
+    }
+
+=cut
+
+sub delFeed{
+	my $self=$_[0];
+	my $feed=$_[1];
+	my $function='delFeed';
+
+	#blanks any previous errors
+	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
+
+	#makes sure a feed is specified
+	if (!defined($feed)) {
+		$self->{error}=3;
+		$self->{errorString}='No feed specified.';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+		return undef;
+	}
+
+	#make sure it exists
+	if (!$self->feedExists($feed)) {
+		$self->{error}=5;
+		$self->{errorString}='The feed, "'.$feed.'", does not exist';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+		return undef;
+	}
+
+	#remove them
+	my @deleted=$self->{zconf}->regexVarDel('rss', '^feeds\/'.quotemeta($feed).'\/');
+	if ($self->{zconf}->{error}) {
+		$self->{error}=2;
+		$self->{errorString}="regexVarDel errored ".
+		                     "error='".$self->{zconf}->{error}."' errorString='"
+		                     .$self->{zconf}->{errorString}."'";
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+		return undef;
+	}
+
+	#saves it
+	$self->{zconf}->writeSetFromLoadedConfig({config=>'rss'});
+	if ($self->{zconf}->{error}) {
+		$self->{error}=2;
+		$self->{errorString}=" writeSetFromLoadedConfig for 'rss'.".
+		                     "failed with '".$self->{zconf}->{error}."', '"
+		                     .$self->{zconf}->{errorString}."'";
+		#remove any that were added
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+		return undef;
+	}
+
+	return 1;
+}
+
+=head2 delTemplate
+
+=cut
+
+sub delTemplate{
+	my $self=$_[0];
+	my $template=$_[1];
+	my $function='delFeed';
+
+	#blanks any previous errors
+	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
+
+	#makes sure a feed is specified
+	if (!defined($template)) {
+		$self->{error}=3;
+		$self->{errorString}='No template specified.';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+		return undef;
+	}
+
+	#make sure it exists
+	my $returned=$self->templateExists($template);
+	if (!$returned) {
+		$self->{error}=7;
+		$self->{errorString}='The template, "'.$template.'", does not exist';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+		return undef;
+	}
+
+	#remove them
+	my @deleted=$self->{zconf}->regexVarDel('rss', '^feeds\/'.quotemeta($template).'\/');
+	if ($self->{zconf}->{error}) {
+		$self->{error}=2;
+		$self->{errorString}="regexVarDel errored ".
+		                     "error='".$self->{zconf}->{error}."' errorString='"
+		                     .$self->{zconf}->{errorString}."'";
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+		return undef;
+	}
+
+	#saves it
+	$self->{zconf}->writeSetFromLoadedConfig({config=>'rss'});
+	if ($self->{zconf}->{error}) {
+		$self->{error}=2;
+		$self->{errorString}=" writeSetFromLoadedConfig for 'rss'.".
+		                     "failed with '".$self->{zconf}->{error}."', '"
+		                     .$self->{zconf}->{errorString}."'";
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+		return undef;
+	}
+
+	return 1;
+}
+
 =head2 getFeed
 
 This creates a 'XML::FeedPP' object based on a feed.
@@ -247,9 +334,13 @@ This creates a 'XML::FeedPP' object based on a feed.
 sub getFeed{
 	my $self=$_[0];
 	my $feed=$_[1];
+	my $function='getFeed';
 
 	#blanks any previous errors
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
 
 	#get the arguements for the feed
 	my %args=$self->getFeedArgs($feed);
@@ -261,9 +352,9 @@ sub getFeed{
 	#
 	my $feedobj = XML::FeedPP->new($args{feed});
 	if (!defined($feedobj)) {
-		warn('ZConf-RSS getFeed:7: Failed to load the feed "'.$feed.'"');
 		$self->{error}=7;
 		$self->{errorString}='Failed to load the feed "'.$feed.'"';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -284,21 +375,25 @@ This fetches the arguements for the feed.
 sub getFeedArgs{
 	my $self=$_[0];
 	my $feed=$_[1];
+	my $function='getFeedArgs';
 
 	#blanks any previous errors
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
 
 	if (!defined($feed)) {
-		warn('ZConf-RSS getFeedArgs:3: No feed name given');
 		$self->{error}=3;
 		$self->{errorString}='No feed name given.';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
 	if (!$self->feedExists($feed)) {
-		warn('ZConf-RSS getFeedArgs:5: The feed, "'.$feed.'", does not exist');
 		$self->{error}=5;
 		$self->{errorString}='The feed, "'.$feed.'", does not exist';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -313,13 +408,11 @@ sub getFeedArgs{
 	#blanks any previous variables
 	my %vars=$self->{zconf}->regexVarGet('rss', '^feeds/'.$feed.'/');
 	if($self->{zconf}->{error}){
-		warn('ZConf-RSS getFeedArgs:2: regexVarGet failed for "rss".'.
-			 ' ZConf error="'.$self->{zconf}->{error}.'" '.
-			 'ZConf error string="'.$self->{zconf}->{errorString}.'"');
 		$self->{error}=2;
 		$self->{errorString}='regexVarGet failed for "rss".'.
 			                 ' ZConf error="'.$self->{zconf}->{error}.'" '.
 			                 'ZConf error string="'.$self->{zconf}->{errorString}.'"';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}	
 
@@ -348,6 +441,12 @@ and returns a string.
 sub getFeedAsTemplatedString{
 	my $self=$_[0];
 	my $feed=$_[1];
+	my $function='getFeedAsTemplatedString';
+
+	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
 
 	#get the arguements for the feed
 	my %args=$self->getFeedArgs($feed);
@@ -383,9 +482,22 @@ sub getFeedAsTemplatedString{
 		}
 	}
 
+	#get the templates
 	my $topT=$self->getTemplate($args{topTemplate});
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': getTemplate errored');
+		return undef;
+	}
 	my $itemT=$self->getTemplate($args{itemTemplate});
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': getTemplate errored');
+		return undef;
+	}
 	my $bottomT=$self->getTemplate($args{bottomTemplate});
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': getTemplate errored');
+		return undef;
+	}
 
 	my $tobj = Text::NeatTemplate->new();
 
@@ -398,7 +510,12 @@ sub getFeedAsTemplatedString{
 		$thash{idesc}=$item->description();
 		$thash{ipubdate}=$item->pubDate();
 		$thash{ilink}=$item->link();
-		$thash{icat}=$item->category();
+		#it will either return a string or array ref
+		my $categories=$item->category;
+		if (ref($categories) eq 'ARRAY') {
+			$categories=join(', ', @{$categories});
+		}
+		$thash{icat}=$categories;
 		$thash{iauthor}=$item->author();
 		$thash{iguid}=$item->guid();
 
@@ -436,19 +553,21 @@ This gets what the current set is.
 
 sub getSet{
 	my $self=$_[0];
+	my $function='getSet';
 
 	#blanks any previous errors
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
 
 	my $set=$self->{zconf}->getSet('rss');
 	if($self->{zconf}->{error}){
-		warn('ZConf-RSS getSet:2: ZConf error getting the loaded set the config "rss".'.
-			 ' ZConf error="'.$self->{zconf}->{error}.'" '.
-			 'ZConf error string="'.$self->{zconf}->{errorString}.'"');
 		$self->{error}=2;
 		$self->{errorString}='ZConf error getting the loaded set the config "rss".'.
 			                 ' ZConf error="'.$self->{zconf}->{error}.'" '.
 			                 'ZConf error string="'.$self->{zconf}->{errorString}.'"';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -469,13 +588,17 @@ This returns a template as a string.
 sub getTemplate{
 	my $self=$_[0];
 	my $template=$_[1];
+	my $function='getTemplate';
 
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
 
 	if (!defined($template)) {
-		warn('ZConf-RSS getTemplate:6: No template specified');
 		$self->{error}=6;
 		$self->{errorstring}='No template specified.';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -486,9 +609,9 @@ sub getTemplate{
 	}
 
 	if (!$returned) {
-		warn('ZConf-RSS getTemplate:7: The template, "'.$template.'", does not exist');
-		$self->{errror}=7;
-		$self->{errorstring}='The template, "'.$template.'", does not exist';
+		$self->{error}=7;
+		$self->{errorString}='The template, "'.$template.'", does not exist';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -521,19 +644,21 @@ it is not defined, ZConf will use the default one.
 sub init{
 	my $self=$_[0];
 	my $set=$_[1];
+	my $function='init';
 
 	#blanks any previous errors
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
 
 	my $returned = $self->{zconf}->configExists("rss");
 	if(defined($self->{zconf}->{error})){
-		warn("ZConf-RSS init:2: Could not check if the config 'rss' exists.".
-			 " It failed with '".$self->{zconf}->{error}."', '"
-			 .$self->{zconf}->{errorString}."'");
 		$self->{error}=2;
 		$self->{errorString}="Could not check if the config 'rss' exists.".
 		                     " It failed with '".$self->{zconf}->{error}."', '"
 			                 .$self->{zconf}->{errorString}."'";
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -541,13 +666,11 @@ sub init{
 	if (!$returned) {
 		$self->{zconf}->createConfig("rss");
 		if ($self->{zconf}->{error}) {
-			warn("ZConf-RSS init:2: Could not create the ZConf config 'rss'.".
-				 " It failed with '".$self->{zconf}->{error}."', '"
-				 .$self->{zconf}->{errorString}."'");
 			$self->{error}=2;
 			$self->{errorString}="Could not create the ZConf config 'rss'.".
 			                 " It failed with '".$self->{zconf}->{rss}."', '"
 			                 .$self->{zconf}->{errorString}."'";
+			warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 			return undef;
 		}
 	}
@@ -562,10 +685,10 @@ sub init{
 			"{\$cdesc}\n";
 	my $item="--------------------------------------------------------------------------------\n".
 	         "Title: {\$ititle}\n".
-             " Date: {\$ipubdate}\n".
+             "Date: {\$ipubdate}\n".
              "Author: {\$iauthor}\n".
 			 "Category: {\$icat}\n".
-			 "ink: {\$ilinkFTWL}\n".
+			 "Link: {\$ilinkFTWL}\n".
 			 "".
 			 "{\$idescFTWL}\n";
 
@@ -580,13 +703,11 @@ sub init{
 																 });
 	#error if the write failed
 	if ($self->{zconf}->{error}) {
-		warn("ZConf-RSS init:2: writeSetFromHash failed.".
-			 " It failed with '".$self->{zconf}->{error}."', '"
-			 .$self->{zconf}->{errorString}."'");
 		$self->{error}=2;
 		$self->{errorString}="writeSetFromHash failed.".
 			                 " It failed with '".$self->{zconf}->{error}."', '"
 			                 .$self->{zconf}->{errorString}."'";
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -606,18 +727,20 @@ This lists the available feeds.
 
 sub listFeeds{
 	my $self=$_[0];
+	my $function='listFeeds';
 
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
 
 	my @feedsA=$self->{zconf}->regexVarSearch('rss', '^feeds/');
 	if ($self->{zconf}->{error}) {
-		warn('ZConf-RSS listLocals:2: ZConf error listing feeds for the config "rss".'.
-			 ' ZConf error="'.$self->{zconf}->{error}.'" '.
-			 'ZConf error string="'.$self->{zconf}->{errorString}.'"');
 		$self->{error}=2;
 		$self->{errorString}='ZConf error listing feeds for the config "rss".'.
 			                 ' ZConf error="'.$self->{zconf}->{error}.'" '.
 			                 'ZConf error string="'.$self->{zconf}->{errorString}.'"';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -647,19 +770,21 @@ This lists the available sets.
 
 sub listSets{
 	my $self=$_[0];
+	my $function='listSets';
 
 	#blanks any previous errors
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
 
 	my @sets=$self->{zconf}->getAvailableSets('rss');
 	if($self->{zconf}->{error}){
-		warn('ZConf-RSS listSets:2: ZConf error listing sets for the config "rss".'.
-			 ' ZConf error="'.$self->{zconf}->{error}.'" '.
-			 'ZConf error string="'.$self->{zconf}->{errorString}.'"');
 		$self->{error}=2;
 		$self->{errorString}='ZConf error listing sets for the config "rss".'.
 			                 ' ZConf error="'.$self->{zconf}->{error}.'" '.
 			                 'ZConf error string="'.$self->{zconf}->{errorString}.'"';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -679,18 +804,20 @@ This gets a list of available templates.
 
 sub listTemplates{
 	my $self=$_[0];
+	my $function='listTemplates';
 
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
 
 	my @templates=$self->{zconf}->regexVarSearch('rss', '^templates/');
 	if ($self->{zconf}->{error}) {
-		warn('ZConf-RSS listTemplates:2: ZConf error listing templates for the config "rss".'.
-			 ' ZConf error="'.$self->{zconf}->{error}.'" '.
-			 'ZConf error string="'.$self->{zconf}->{errorString}.'"');
 		$self->{error}=2;
 		$self->{errorString}='ZConf error listing templates for the config "rss".'.
 			                 ' ZConf error="'.$self->{zconf}->{error}.'" '.
 			                 'ZConf error string="'.$self->{zconf}->{errorString}.'"';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -727,20 +854,21 @@ is undef, the default set is read.
 sub readSet{
 	my $self=$_[0];
 	my $set=$_[1];
-
+	my $function='readSet';
 	
 	#blanks any previous errors
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
 
 	$self->{zconf}->read({config=>'rss', set=>$set});
 	if ($self->{zconf}->{error}) {
-		warn('ZConf-RSS readSet:2: ZConf error reading the config "rss".'.
-			 ' ZConf error="'.$self->{zconf}->{error}.'" '.
-			 'ZConf error string="'.$self->{zconf}->{errorString}.'"');
 		$self->{error}=2;
 		$self->{errorString}='ZConf error reading the config "rss".'.
 			                 ' ZConf error="'.$self->{zconf}->{error}.'" '.
 			                 'ZConf error string="'.$self->{zconf}->{errorString}.'"';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -779,10 +907,14 @@ sub setFeed{
 	if(defined($_[1])){
 		%args= %{$_[1]};
 	}
+	my $function='setFeed';
 
 	#blanks any previous errors
 	$self->errorblank;
-	
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
+
 	#required hash arguements
 	my @required=('feed', 'name', 'topTemplate', 'itemTemplate',
 				  'bottomTemplate');
@@ -792,21 +924,19 @@ sub setFeed{
 	#make sure everything is defined
 	while (defined($required[$rint])) {
 		if (!defined($required[$rint])) {
-			warn('ZConf-RSS setFeed:3: %args is missing the key "'.
-				 $required[$rint].'"');
 			$self->{error}=3;
 			$self->{errorString}='%args is missing the key "'.
 			                     $required[$rint].'"';
-		return undef;	
+			warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+			return undef;	
 		}
 		$rint++;
 	}
 
 	if ($args{name} =~ /\//) {
-		warn('ZConf-RSS setFeed:4: The feed name, "'.$args{name}.
-			 '", can\'t match /\//');
 		$self->{error}=4;
 		$self->{errorString}='The feed name, "'.$args{name}.'", can\'t match /\//';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -816,15 +946,13 @@ sub setFeed{
 		$self->{zconf}->setVar('rss', 'feeds/'.$args{name}.'/'.$required[$rint],
 							   $args{$required[$rint]});
 		if ($self->{zconf}->{error}) {
-			warn("ZConf-RSS setFeed:2: Setting variable for 'rss'.".
-				 "failed with '".$self->{zconf}->{error}."', '"
-				 .$self->{zconf}->{errorString}."'");
 			$self->{error}=2;
 			$self->{errorString}=" Setting variable for 'rss'.".
 			                     "failed with '".$self->{zconf}->{error}."', '"
 			                     .$self->{zconf}->{errorString}."'";
 			#remove any that were added
 			$self->{zconf}->regexVarDel('rss', '^feeds/'.$args{name}.'/');
+			warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 			return undef;
 		}
 
@@ -833,15 +961,13 @@ sub setFeed{
 
 	$self->{zconf}->writeSetFromLoadedConfig({config=>'rss'});
 	if ($self->{zconf}->{error}) {
-		warn("ZConf-RSS setFeed:2: writeSetFromLoadedConfig for 'rss'.".
-			 "failed with '".$self->{zconf}->{error}."', '"
-			 .$self->{zconf}->{errorString}."'");
 		$self->{error}=2;
 		$self->{errorString}=" writeSetFromLoadedConfig for 'rss'.".
 		                     "failed with '".$self->{zconf}->{error}."', '"
 		                     .$self->{zconf}->{errorString}."'";
 		#remove any that were added
 		$self->{zconf}->regexVarDel('rss', '^feeds/'.$args{name}.'/');
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -863,49 +989,49 @@ sub setTemplate{
 	my $self=$_[0];
 	my $name=$_[1];
 	my $template=$_[2];
+	my $function='setTemplate';
 
 	#blanks any previous errors
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
 
 	#make sure a name for the template is specified
 	if (!defined($name)) {
-		warn('ZConf-RSS getTemplate:3: No template name specified');
 		$self->{error}=3;
-		$self->{errorstring}='No template specified.';
+		$self->{errorstring}='No template specified';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
 	#make sure a template is specified
 	if (!defined($template)) {
-		warn('ZConf-RSS getTemplate:3: No template specified');
 		$self->{error}=3;
-		$self->{errorstring}='No template specified.';
+		$self->{errorstring}='No template specified';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
 	$self->{zconf}->setVar('rss', 'templates/'.$name, $template);
 	if ($self->{zconf}->{error}) {
-		warn('ZConf-RSS setTemplate:2: Error set the variable "templates/'.$name.'"'.
-			 'for "rss" ZConf error="'.$self->{zconf}->{error}.'" '.
-			 'ZConf error string="'.$self->{zconf}->{errorString}.'"');
 		$self->{error}=2;
 		$self->{errorString}=' Error set the variable "templates/'.$name.'"'.
 		                     'for "rss" ZConf error="'.$self->{zconf}->{error}.'" '.
 			                 'ZConf error string="'.$self->{zconf}->{errorString}.'"';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
 	$self->{zconf}->writeSetFromLoadedConfig({config=>'rss'});
 	if ($self->{zconf}->{error}) {
-		warn("ZConf-RSS setFeed:2: writeSetFromLoadedConfig for 'rss'.".
-			 "failed with '".$self->{zconf}->{error}."', '"
-			 .$self->{zconf}->{errorString}."'");
 		$self->{error}=2;
 		$self->{errorString}=" writeSetFromLoadedConfig for 'rss'.".
 		                     "failed with '".$self->{zconf}->{error}."', '"
 		                     .$self->{zconf}->{errorString}."'";
 		#remove any that were added
 		$self->{zconf}->regexVarDel('rss', '^templates/'.$name.'/');
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -930,8 +1056,12 @@ This makes sure a specified template exists.
 sub templateExists{
 	my $self=$_[0];
 	my $template=$_[1];
+	my $function='templateExists';
 
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+	}
 
 	my @templates=$self->listTemplates;
 	if ($self->{error}) {
@@ -965,6 +1095,10 @@ It does the following.
 #blanks the error flags
 sub errorblank{
         my $self=$_[0];
+
+		if ($self->{perror}) {
+			return undef;
+		}
 
         $self->{error}=undef;
         $self->{errorString}="";
@@ -1069,7 +1203,7 @@ This is the link for a item.
 
 This one is blank by default.
 
-=head2 ERROR CODES
+=head1 ERROR CODES
 
 =head2 1
 

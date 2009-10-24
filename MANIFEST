@@ -6,3 +6,5 @@ lib/ZConf/RSS.pm
 t/00-load.t
 t/pod-coverage.t
 t/pod.t
+bin/zcrss-get
+bin/zcrss-admin

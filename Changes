@@ -1,5 +1,18 @@
 Revision history for ZConf-RSS
 
+1.0.0	2009-10-23/23:20
+		-Warning cleanup.
+		-The arg hash key 'zconf' for new is now a ZConf object.
+		-Add POD for 'bin/zcrss-admin'.
+		-Add POD for 'bin/zcrss-get'.
+		-Added support for removing templates and feeds to 'ZConf::RSS' and 'bin/zcrss-admin'.
+		-Updated both scripts to for the new set handling.
+		-Removed '-o' from 'bin/zcrss-admin'.
+		-Fixed 'gro' action for 'bin/zcrss-admin'.
+		-Cleaned up template handling for categories incase a ARRAY is given.
+
+0.0.1	?/?
+		-Pod header corrections for the new method.
+
 0.0.0   2009-04-16/16:30
         First version, released on an unsuspecting world.
-
