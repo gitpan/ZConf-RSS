@@ -11,22 +11,18 @@ ZConf::RSS::GUI - Provides various GUI methods for ZConf::RSS.
 
 =head1 VERSION
 
-Version 0.0.0
+Version 0.0.1
 
 =cut
 
-our $VERSION = '0.0.0';
+our $VERSION = '0.0.1';
 
 
 =head1 SYNOPSIS
 
-Quick summary of what the module does.
-
-Perhaps a little code snippet.
-
     use ZConf::RSS::GUI;
 
-    my $foo = ZConf::RSS::GUI->new();
+    my $zcrssGui = ZConf::RSS::GUI->new();
     ...
 
 =head1 METHODS
@@ -152,7 +148,7 @@ Invokes the view window.
 
 sub manage{
 	my $self=$_[0];
-	my $function='app';
+	my $function='manage';
 
 	$self->errorblank;
 	if ($self->{error}) {
@@ -185,7 +181,7 @@ Invokes the view window.
 
 sub view{
 	my $self=$_[0];
-	my $function='app';
+	my $function='view';
 
 	$self->errorblank;
 	if ($self->{error}) {
@@ -343,7 +339,7 @@ Zane C. Bowers, C<< <vvelox at vvelox.net> >>
 =head1 BUGS
 
 Please report any bugs or feature requests to C<bug-zconf-devtemplate at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=ZConf-template>.  I will be notified, and then you'll
+the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=ZConf-RSS>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
 
 
