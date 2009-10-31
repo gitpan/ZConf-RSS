@@ -1,5 +1,8 @@
 Revision history for ZConf-RSS
 
+2.0.0 2009-10-31/16:29
+		-ZConf::GUI support added.
+
 1.0.0	2009-10-23/23:20
 		-Warning cleanup.
 		-The arg hash key 'zconf' for new is now a ZConf object.
