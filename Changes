@@ -1,5 +1,11 @@
 Revision history for ZConf-RSS
 
+2.1.0	2009-11-07/00:40
+		-Correct a few mistakes in the GUI module.
+		-Remove the POD stuff for some non-existant methods.
+		-Add examples to any methods that are missing any.
+		-Add ZConf::RSS::GUI-addFeed.
+
 2.0.1	2009-10-31/17:45
 		-Clean a few things for the POD.
 

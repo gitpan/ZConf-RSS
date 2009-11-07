@@ -13,11 +13,11 @@ ZConf::RSS - ZConf backed RSS fetching.
 
 =head1 VERSION
 
-Version 2.0.1
+Version 2.1.0
 
 =cut
 
-our $VERSION = '2.0.1';
+our $VERSION = '2.1.0';
 
 
 =head1 SYNOPSIS
@@ -145,19 +145,6 @@ sub new {
 	return $self;
 }
 
-=head2 composeFromFeed
-
-This takes a specified feed name and composes string based on it.
-
-=cut
-
-=head2 composeFromObj
-
-This takes the returned 'XML::FeedPP' object returned by 'getFeed' and composes
-a string out of it using the specified templates.
-
-=cut
-
 =head2 feedExists
 
 This makes sure a specified template exists.
@@ -270,6 +257,15 @@ sub delFeed{
 
 =head2 delTemplate
 
+This removes a template.
+
+One arguement is taken and it is the template name.
+
+    $zcrss->delTemplate('someTemplate');
+    if($zcrss->{error}){
+        print "Error!\n";
+    }
+
 =cut
 
 sub delTemplate{
@@ -328,6 +324,13 @@ sub delTemplate{
 =head2 getFeed
 
 This creates a 'XML::FeedPP' object based on a feed.
+
+One arguement is taken and it is the name of the feed.
+
+    my $feedobj=$zcrss->getFeed;
+    if($zcrss->{error}){
+        print "Error!\n";
+    }
 
 =cut
 
@@ -435,6 +438,9 @@ This fetches a feed, processes it using the specified templates
 and returns a string.
 
     my $string=$zcrss->getFeedAsTemplatedString('someFeed');
+    if($zcrss->{error}){
+        print "Error!\n";
+    }
 
 =cut
 
@@ -688,7 +694,7 @@ sub init{
              "Date: {\$ipubdate}\n".
              "Author: {\$iauthor}\n".
 			 "Category: {\$icat}\n".
-			 "Link: {\$ilinkFTWL}\n".
+			 "Link: {\$ilink}\n".
 			 "".
 			 "{\$idescFTWL}\n";
 
@@ -877,6 +883,10 @@ sub readSet{
 
 =head2 setFeed
 
+This adds a new feed or modifies a existing one.
+
+One arguement is taken and it is a hash.
+
 =head3 hash args
 
 =head4 feed
@@ -898,6 +908,17 @@ This is the name of the template that will be used for each item.
 =head4 bottomTemplate
 
 This is the name of the bottom template to use.
+
+    $zcrss->setFeed({
+                    feed=>'http://foo.bar/rss.xml',
+                    name=>'Foo Bar',
+                    topTemplate=>'defaultTop',
+                    itemTemplate=>'defaultItem',
+                    bottomTemplate=>'defaultBottom',
+                    });
+    if($zrss->{error}){
+        print "Error!\n";
+    }
 
 =cut
 

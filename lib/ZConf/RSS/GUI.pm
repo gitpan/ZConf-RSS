@@ -11,11 +11,11 @@ ZConf::RSS::GUI - Provides various GUI methods for ZConf::RSS.
 
 =head1 VERSION
 
-Version 0.0.1
+Version 0.0.2
 
 =cut
 
-our $VERSION = '0.0.1';
+our $VERSION = '0.0.2';
 
 
 =head1 SYNOPSIS
@@ -59,7 +59,7 @@ sub new{
 	#gets the object or initiate it
 	if (!defined($args{obj})) {
 		$self->{obj}=ZConf::RSS->new;
-		if ($self->{obj}) {
+		if ($self->{obj}->{error}) {
 			$self->{error}=1;
 			$self->{perror}=1;
 			$self->{errorString}='Failed to initiate ZConf::RSS. error="'.
@@ -76,7 +76,7 @@ sub new{
 
 	#gets the gui
 	$self->{gui}=ZConf::GUI->new({zconf=>$self->{zconf}});
-	if ($self->{obj}) {
+	if ($self->{obj}->{error}) {
 		$self->{error}=2;
 		$self->{perror}=1;
 		$self->{errorString}='Failed to initiate ZConf::GUI. error="'.
@@ -109,8 +109,7 @@ sub new{
 	#initiate the backend
 	my $toeval='use ZConf::RSS::GUI::'.$preferred[0].';'."\n".
 	           '$self->{be}=ZConf::RSS::GUI::'.$preferred[0].
-			   '->new({zconf=>$self->{zconf}, useX=>$self->{useX},'.
-			   'zcgui=>$self->{gui}, zcrunner=>$self->{zcr}}); return 1';
+			   '->new({obj=>$self->{obj}});';
 	my $er=eval($toeval);
 
 	#failed to initiate the backend
@@ -123,7 +122,7 @@ sub new{
 	}
 
 	#backend errored
-	if (!$self->{be}->{error}) {
+	if ($self->{be}->{error}) {
 		$self->{error}=4;
 		$self->{perror}=1;
 		$self->{errorString}='The backend returned undefined. error="'.
@@ -133,6 +132,44 @@ sub new{
 	}
 
 	return $self;
+}
+
+=head2 addFeed
+
+This invokes a dialog to add a new feed.
+
+There is one optional arguement taken and it is the URL
+for the feed. This will be used to automatically populate
+URL feild in the dialog.
+
+    $zcrssGui->addFeed('http://foo.bar/rss.xml');
+    if($zcrssGui->{error}){
+        print "Error!\n";
+    }
+
+=cut
+
+sub addFeed{
+	my $self=$_[0];
+	my $feed=$_[1];
+	my $function='manage';
+
+	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set. error="'.$self->{error}.'" errorString="'.$self->{errorString}.'"');
+		return undef;
+	}
+
+	$self->{be}->addFeed($feed);
+	if ($self->{be}->{error}) {
+		$self->{error}=5;
+		$self->{errorString}='The backend errored. error="'.
+    	                     $self->{be}->{error}.'" errorString="'.$self->{be}->{errorString}.'"';
+		warn($self->{module}.' '.$function.': A permanent error is set. error="'.$self->{error}.'" errorString="'.$self->{errorString}.'"');
+		return undef;		
+	}
+
+	return 1;
 }
 
 =head2 manage
@@ -319,7 +356,13 @@ Backend errored.
 
 No backend found via ZConf::GUI->which.
 
-=head1 windows
+=head1 DIALOGS
+
+=head2 addFeed
+
+This adds a new feed.
+
+=head1 WINDOWS
 
 Please not that unless working directly and specifically with a backend, windows and dialogs
 are effectively the same in that they don't return until the window exits, generally.
