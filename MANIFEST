@@ -8,5 +8,8 @@ t/00-load.t
 t/01-load.t
 t/pod-coverage.t
 t/pod.t
-bin/zcrss-get
+bin/zcrss-addfeed
 bin/zcrss-admin
+bin/zcrss-browse
+bin/zcrss-get
+bin/zcrss-managetemplates

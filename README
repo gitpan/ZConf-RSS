@@ -3,6 +3,9 @@ ZConf-RSS
 Some basic stuff for storing RSS feeds, fetching them, and dumping
 them via template.
 
+If one of the GUI backends is installed, there are other misc
+functions available.
+
 INSTALLATION
 
 To install this module, run the following commands:

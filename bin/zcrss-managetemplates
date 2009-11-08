@@ -26,35 +26,29 @@ use strict;
 use warnings;
 use Getopt::Std;
 use ZConf::RSS;
+use ZConf::RSS::GUI;
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
 
 #version function
 sub main::VERSION_MESSAGE {
-	print "zcrss-get 0.0.2\n";
+	print "zcrss-managetemplates 0.0.0\n";
 }
 
 #print help
 sub main::HELP_MESSAGE {
 	print "\n".
-	      "-r <feed>  RSS feed name to read\n".
 		  "-s <set>  The ZConf set to use\n";
 }
 
 #gets the options
 my %opts=();
-getopts('r:s:', \%opts);
-
-#make sure a defined
-if (!defined($opts{r})) {
-	warn('zcrss-admin: -r not specified');
-	exit 254;	
-}
+getopts('s:', \%opts);
 
 #inits ZConf::RSS
 my $zr = ZConf::RSS->new();
 if($zr->{error}){
-	warn('zcrss-admin: ZConf::RSS->new({set=>$opts{s}} errored');
+	warn('zcrss-managetemplates: ZConf::RSS->new({set=>$opts{s}} errored');
 	exit $zr->{error};
 }
 
@@ -65,25 +59,27 @@ if (defined($opts{s})) {
 	}
 }
 
-my $string=$zr->getFeedAsTemplatedString($opts{r});
-if ($zr->{error}) {
+my $zcrssgui=ZConf::RSS::GUI->new({obj=>$zr});
+if($zr->{error}){
+	warn('zcrss-managetemplates: ZConf::RSS::GUI->new errored');
 	exit $zr->{error};
 }
-print $string;
+
+$zcrssgui->manage();
+if($zr->{error}){
+	warn('zcrss-managetemplates: ZConf::RSS::GUI->manage errored');
+	exit $zr->{error};
+}
 
 =head1 NAME
 
-zcrss-get - Fetches a feed and applies the template for it.
+zcrss-managetemplates - Calls the manage dialog for ZConf::RSS::GUI
 
 =head1 SYNOPSIS
 
-zcrss-get [B<-s> <set>] B<-r> <feed>
+zcrss-managetemplates [B<-s> <set>]
 
 =head1 SWTICHES
-
-=head2 -r <feed>
-
-This is the feed to operate on.
 
 =head2 -s <set>
 
@@ -92,10 +88,6 @@ If this is specified, this set is ran.
 =head1 EXIT CODES
 
 If a exit code is not listed below, it is what ever error value ZConf::RSS returned.
-
-=head2 254
-
-'-r' was not specified.
 
 =head1 AUTHOR
 
@@ -129,6 +121,6 @@ any
 
 =head1 README
 
-zcrss-get - Fetches a feed and applies the template for it.
+zcrss-managetemplates - Calls the manage dialog for ZConf::RSS::GUI
 
 =cut

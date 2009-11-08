@@ -13,11 +13,11 @@ ZConf::RSS - ZConf backed RSS fetching.
 
 =head1 VERSION
 
-Version 2.1.0
+Version 2.2.0
 
 =cut
 
-our $VERSION = '2.1.0';
+our $VERSION = '2.2.0';
 
 
 =head1 SYNOPSIS
@@ -297,7 +297,7 @@ sub delTemplate{
 	}
 
 	#remove them
-	my @deleted=$self->{zconf}->regexVarDel('rss', '^feeds\/'.quotemeta($template).'\/');
+	my @deleted=$self->{zconf}->regexVarDel('rss', '^templates\/'.quotemeta($template).'$');
 	if ($self->{zconf}->{error}) {
 		$self->{error}=2;
 		$self->{errorString}="regexVarDel errored ".

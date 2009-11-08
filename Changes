@@ -1,5 +1,12 @@
 Revision history for ZConf-RSS
 
+2.1.1	2009-11-08/01:10
+		-Correct a error with delTemplate.
+		-Add 'bin/zcrss-addfeed'.
+		-Add 'bin/zcrss-browse'.
+		-Add 'bin/zcrss-managetemplates'.
+		-Correct the dependencies in 'Makefile.PL'.
+
 2.1.0	2009-11-07/00:40
 		-Correct a few mistakes in the GUI module.
 		-Remove the POD stuff for some non-existant methods.
